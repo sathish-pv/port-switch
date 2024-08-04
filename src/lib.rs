@@ -1,5 +1,5 @@
 mod app;
-mod proxy_backend;
+mod dynamic_proxy;
 mod widgets;
 pub use app::App;
-pub use proxy_backend::{start_backend, BackEndConfig};
+pub use dynamic_proxy::{DynamicProxy, ProxyConfig};
