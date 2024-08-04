@@ -1,30 +1,15 @@
-use std::sync::mpsc::Sender;
-
+use crate::dynamic_proxy::ProxyConfig;
 use eframe::egui;
-
-use crate::proxy_backend::BackEndConfig;
+use std::sync::mpsc::Sender;
 
 mod create;
 mod list;
-
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct App {
-    listen_port: u16,
-    is_enabled: bool,
-    forward_ports: Vec<ForwardPort>,
-    active_forward_port: Option<ForwardPort>,
-    #[serde(skip)]
-    active_page: Pages,
-    #[serde(skip)]
-    update_sender: Option<Sender<BackEndConfig>>,
-    #[serde(skip)]
-    error: Option<String>,
-}
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 struct ForwardPort {
     port: u16,
     name: String,
+    #[serde(skip)]
     error: Option<String>,
 }
 
@@ -44,30 +29,38 @@ impl Default for ForwardPort {
     }
 }
 
-impl Default for App {
-    fn default() -> Self {
-        let forto = ForwardPort::default();
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+pub struct App {
+    listen_port: u16,
+    is_enabled: bool,
+    forward_ports: Vec<ForwardPort>,
+    active_forward_port: Option<ForwardPort>,
+    #[serde(skip)]
+    active_page: Pages,
+    #[serde(skip)]
+    update_channel: Option<Sender<ProxyConfig>>,
+    #[serde(skip)]
+    error: Option<String>,
+}
+
+impl App {
+    fn init_state() -> Self {
         Self {
             listen_port: 8080,
-            is_enabled: false,
-            forward_ports: vec![forto],
-            active_page: Pages::default(),
-            active_forward_port: None,
-            update_sender: None,
-            error: None,
+            ..Default::default()
         }
     }
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext<'_>, tx: Sender<BackEndConfig>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, tx: Sender<ProxyConfig>) -> Self {
         let mut init_app_state: App = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
-            Default::default()
+            Self::init_state()
         };
-        init_app_state.update_sender = Some(tx);
-        init_app_state.update_hyper();
+        init_app_state.update_channel = Some(tx);
+        init_app_state.update_backend();
         init_app_state
     }
 }
@@ -75,27 +68,27 @@ impl App {
 enum Pages {
     #[default]
     List,
-    // #[serde(skip)]
     Creation(ForwardPort),
     Edit(usize, ForwardPort),
 }
 
 impl App {
-    fn update_hyper(&mut self) {
-        let mut conf = BackEndConfig::default();
+    fn update_backend(&mut self) {
+        let mut conf = ProxyConfig::default();
         if self.is_enabled && self.active_forward_port.is_some() {
             let listen_port = self.listen_port;
             if let Some(fp) = &self.active_forward_port {
                 let forward_port = fp.port;
-                conf = BackEndConfig(Some((listen_port, forward_port)));
+                conf = ProxyConfig(Some((listen_port, forward_port)));
             }
         }
 
         match conf.validate() {
             Ok(_) => {
                 self.error = None;
-                let _ = match &self.update_sender {
-                    Some(tx) => tx.send(conf),
+
+                let _ = match &self.update_channel {
+                    Some(backend) => backend.send(conf),
                     None => panic!("Sender Channel Not found"),
                 };
             }
@@ -119,5 +112,9 @@ impl eframe::App for App {
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, &self);
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.update_channel = None;
     }
 }

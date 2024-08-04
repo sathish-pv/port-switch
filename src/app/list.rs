@@ -19,8 +19,10 @@ impl App {
                     });
                     ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                         egui::widgets::global_dark_light_mode_switch(ui);
-                        if ui.button("Reset").clicked() {
-                            *self = App::default();
+                        if cfg!(debug_assertions) {
+                            if ui.button("Reset").clicked() {
+                                *self = App::init_state();
+                            }
                         }
                     });
                 })
@@ -44,7 +46,7 @@ impl App {
 
                     ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                         if ui.add(Toggle::new(&mut self.is_enabled)).clicked() {
-                            self.update_hyper();
+                            self.update_backend();
                         };
                     });
                 });
@@ -94,7 +96,7 @@ impl App {
                                 } else {
                                     self.active_forward_port = Some(forward_port.clone());
                                 }
-                                self.update_hyper();
+                                self.update_backend();
                             };
                         });
                     });

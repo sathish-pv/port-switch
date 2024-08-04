@@ -1,11 +1,6 @@
-use std::{
-    sync::mpsc::{channel, Receiver, Sender},
-    thread,
-};
+use port_switch::DynamicProxy;
 
-use port_switch::{start_backend, BackEndConfig};
-
-fn main() -> eframe::Result {
+fn main() -> Result<(), eframe::Error> {
     // env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let native_options = eframe::NativeOptions {
@@ -15,15 +10,15 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    let (tx, rx): (Sender<BackEndConfig>, Receiver<BackEndConfig>) = channel();
-
-    let _handle = thread::Builder::new()
-        .name("port_switch_back_end".to_string())
-        .spawn(|| start_backend(rx));
+    let (tx, handle) = DynamicProxy
+        .start()
+        .map_err(|err| eframe::Error::AppCreation(Box::new(err)))?;
 
     eframe::run_native(
         "Port switch",
         native_options,
         Box::new(|cc| Ok(Box::new(port_switch::App::new(cc, tx)))),
-    )
+    )?;
+    handle.join().unwrap();
+    Ok(())
 }
