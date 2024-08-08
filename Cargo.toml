@@ -6,9 +6,6 @@ edition = "2021"
 [dependencies]
 eframe = { version = "0.28.1", features = ["persistence"]}
 egui = { version = "0.28.1", default-features = false}
-http-body-util = "0.1.2"
-hyper = {version = "1.4.1", features = ["full"] }
-hyper-util = {version = "0.1.6", features = ["full"] }
 lazy_static = "1.5.0"
 serde = { version = "1.0.204", features = ["derive"] }
 tokio = {version = "1.39.2", features = ["full"] }
