@@ -1,0 +1,10 @@
+[package]
+name = "port_switch"
+version.workspace = true
+edition = "2021"
+
+[dependencies]
+eframe = { version = "0.28.1", features = ["persistence"]}
+egui = { version = "0.28.1", default-features = false}
+serde = { version = "1.0.204", features = ["derive"] }
+dynamic_tcp_proxy = { path = "../dynamic_tcp_proxy"}
