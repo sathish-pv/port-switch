@@ -1,4 +1,4 @@
-use crate::dynamic_proxy::ProxyConfig;
+use dynamic_tcp_proxy::ProxyConfig;
 use eframe::egui;
 use std::sync::mpsc::Sender;
 

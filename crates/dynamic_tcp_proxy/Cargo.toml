@@ -1,0 +1,20 @@
+[package]
+name = "dynamic_tcp_proxy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/sathish-pv/port-switch/tree/main/crates/dynamic_tcp_proxy"
+authors = ["Sathish <sathishpvns@gmail.com>"]
+description = "Dynamic proxy implementation in Rust. This crate is designed to allow you to start a proxy that can be reconfigured at runtime."
+readme = "README.md"
+categories = ["network-programming"]
+keywords = ["proxy", "dynamic-proxy"]
+include = [
+  "../LICENSE-MIT",
+  "*/*.rs"
+]
+
+[dependencies]
+tokio = {version = "1.39.2", features = ["full"]}
+lazy_static = "1.5.0"
