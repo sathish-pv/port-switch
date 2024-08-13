@@ -5,7 +5,7 @@ members = ["crates/dynamic_tcp_proxy", "crates/port_switch"]
 [workspace.package]
 edition = "2021"
 license = "MIT"
-version = "0.1.0"
+version = "0.2.0"
 repository = "https://github.com/sathish-pv/port-switch"
 
 [profile.release]

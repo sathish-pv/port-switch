@@ -29,60 +29,65 @@ fn set_target_port(target_port: u16) {
     *write_guard = Some(target_port);
 }
 
-pub struct DynamicProxy;
+
+pub struct DynamicProxy(StdSender<ProxyConfig>);
 
 impl DynamicProxy {
-    pub fn start(self) -> Result<(StdSender<ProxyConfig>, JoinHandle<()>), Error> {
+    pub fn initiate() -> Result<(Self, JoinHandle<()>), Error> {
         let (update_tx, update_rx): (StdSender<ProxyConfig>, StdReceiver<ProxyConfig>) = channel();
 
         let handle = thread::Builder::new()
             .name("dynamic_proxy".to_string())
-            .spawn(move || self.initiate_update_observer(update_rx))?;
-        Ok((update_tx, handle))
+            .spawn(move || initiate_update_observer(update_rx))?;
+        Ok((Self(update_tx), handle))
     }
 
-    fn initiate_update_observer(self, update_rx: StdReceiver<ProxyConfig>) {
-        let mut running_proxy_thread: Option<TokioJoinHandle<()>> = None;
-        let mut proxy_kill_tx: Option<Sender<()>> = None;
+    pub fn update(&self, config: ProxyConfig) -> Result<(), std::sync::mpsc::SendError<ProxyConfig>> {
+        self.0.send(config)
+    }
+}
 
-        let runtime = Runtime::new().unwrap();
-        while let Ok(config) = update_rx.recv() {
-            if config.off() && running_proxy_thread.is_some() {
-                let curr_shudown_tx = proxy_kill_tx.clone();
-                runtime.block_on(async move {
-                    let kill_tx =
-                        curr_shudown_tx.expect("Tx for shutting down current sever not found");
-                    let _ = kill_tx.send(()).await;
-                });
+fn initiate_update_observer(update_rx: StdReceiver<ProxyConfig>) {
+    let mut running_proxy_thread: Option<TokioJoinHandle<()>> = None;
+    let mut proxy_kill_tx: Option<Sender<()>> = None;
 
-                running_proxy_thread = None;
-            } else if config.on() {
-                let forward_port = config
-                    .forward_port()
+    let runtime = Runtime::new().unwrap();
+    while let Ok(config) = update_rx.recv() {
+        if config.off() && running_proxy_thread.is_some() {
+            let curr_shudown_tx = proxy_kill_tx.clone();
+            runtime.block_on(async move {
+                let kill_tx =
+                    curr_shudown_tx.expect("Tx for shutting down current sever not found");
+                let _ = kill_tx.send(()).await;
+            });
+
+            running_proxy_thread = None;
+        } else if config.on() {
+            let forward_port = config
+                .forward_port()
+                .expect("Listening port not set before starting server");
+            set_target_port(forward_port);
+
+            if running_proxy_thread.is_none() {
+                let listen_port = config
+                    .listen_port()
                     .expect("Listening port not set before starting server");
-                set_target_port(forward_port);
 
-                if running_proxy_thread.is_none() {
-                    let listen_port = config
-                        .listen_port()
-                        .expect("Listening port not set before starting server");
-
-                    let (new_proxy_kill_tx, new_proxy_kill_rx) = mpsc::channel::<()>(1);
-                    let handle = create_proxy(&runtime, listen_port, new_proxy_kill_rx);
-                    running_proxy_thread = Some(handle);
-                    proxy_kill_tx = Some(new_proxy_kill_tx);
-                }
+                let (new_proxy_kill_tx, new_proxy_kill_rx) = mpsc::channel::<()>(1);
+                let handle = create_proxy(&runtime, listen_port, new_proxy_kill_rx);
+                running_proxy_thread = Some(handle);
+                proxy_kill_tx = Some(new_proxy_kill_tx);
             }
         }
+    }
 
-        if let Some(join_handle) = running_proxy_thread {
-            runtime.block_on(async move {
-                let _ = proxy_kill_tx
-                    .expect("kill tx should be present")
-                    .send(())
-                    .await;
-                let _ = join_handle.await;
-            });
-        }
+    if let Some(join_handle) = running_proxy_thread {
+        runtime.block_on(async move {
+            let _ = proxy_kill_tx
+                .expect("kill tx should be present")
+                .send(())
+                .await;
+            let _ = join_handle.await;
+        });
     }
 }
