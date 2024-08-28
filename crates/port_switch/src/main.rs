@@ -10,14 +10,13 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    let (tx, handle) = DynamicProxy
-        .start()
+    let (proxy_handle, handle) = DynamicProxy::initiate()
         .map_err(|err| eframe::Error::AppCreation(Box::new(err)))?;
 
     eframe::run_native(
         "Port switch",
         native_options,
-        Box::new(|cc| Ok(Box::new(port_switch::App::new(cc, tx)))),
+        Box::new(|cc| Ok(Box::new(port_switch::App::new(cc, proxy_handle)))),
     )?;
     handle.join().unwrap();
     Ok(())

@@ -1,6 +1,5 @@
-use dynamic_tcp_proxy::ProxyConfig;
+use dynamic_tcp_proxy::{DynamicProxy, ProxyConfig};
 use eframe::egui;
-use std::sync::mpsc::Sender;
 
 mod create;
 mod list;
@@ -38,7 +37,7 @@ pub struct App {
     #[serde(skip)]
     active_page: Pages,
     #[serde(skip)]
-    update_channel: Option<Sender<ProxyConfig>>,
+    proxy_handle: Option<DynamicProxy>,
     #[serde(skip)]
     error: Option<String>,
 }
@@ -53,13 +52,13 @@ impl App {
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext<'_>, tx: Sender<ProxyConfig>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, proxy_handle: DynamicProxy) -> Self {
         let mut init_app_state: App = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
             Self::init_state()
         };
-        init_app_state.update_channel = Some(tx);
+        init_app_state.proxy_handle = Some(proxy_handle);
         init_app_state.update_backend();
         init_app_state
     }
@@ -87,8 +86,8 @@ impl App {
             Ok(_) => {
                 self.error = None;
 
-                let _ = match &self.update_channel {
-                    Some(backend) => backend.send(conf),
+                let _ = match &self.proxy_handle {
+                    Some(backend) => backend.update(conf),
                     None => panic!("Sender Channel Not found"),
                 };
             }
@@ -115,6 +114,6 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        self.update_channel = None;
+        self.proxy_handle = None;
     }
 }
