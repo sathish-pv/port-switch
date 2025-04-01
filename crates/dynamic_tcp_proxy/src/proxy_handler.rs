@@ -1,8 +1,10 @@
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Receiver;
 use tokio::task::JoinHandle;
+
+use crate::config::ForwardTarget;
 
 pub(super) fn create_proxy(
     runtime: &Runtime,
@@ -17,8 +19,14 @@ pub(super) fn create_proxy(
         let kill_signal = create_kill_signal(kill_rx);
         let mut kill_signal = std::pin::pin!(kill_signal);
 
-        let target_port = super::get_target_port();
-        let forward_addr = SocketAddr::from(([127, 0, 0, 1], target_port));
+        let ForwardTarget{ domain, port } = super::get_target();
+
+        let target_socket = format!("{domain}:{port}");
+
+        let mut forward_addr = target_socket.to_socket_addrs().expect("Invalid domain")
+            .next()
+            .expect("No address found");
+        forward_addr.set_port(port);
 
         loop {
             tokio::select! {
