@@ -18,3 +18,4 @@ include = [
 [dependencies]
 tokio = {version = "1.39.2", features = ["full"]}
 lazy_static = "1.5.0"
+serde = "1.0.219"

@@ -12,23 +12,23 @@ use tokio::sync::mpsc::{self, Sender};
 use lazy_static::lazy_static;
 use proxy_handler::create_proxy;
 
-pub use config::ProxyConfig;
+pub use config::{ForwardTarget, ProxyConfig};
 use tokio::task::JoinHandle as TokioJoinHandle;
 
 lazy_static! {
-    static ref TARGET_PORT: Arc<Mutex<Option<u16>>> = Arc::new(Mutex::new(Default::default()));
+    static ref TARGET_PORT: Arc<Mutex<Option<ForwardTarget>>> =
+        Arc::new(Mutex::new(Default::default()));
 }
 
-fn get_target_port() -> u16 {
+fn get_target() -> ForwardTarget {
     let read_guard = TARGET_PORT.lock().expect("Cannot lock target port mutex");
-    read_guard.unwrap()
+    read_guard.clone().unwrap()
 }
 
-fn set_target_port(target_port: u16) {
+fn set_target(target: ForwardTarget) {
     let mut write_guard = TARGET_PORT.lock().expect("Cannot lock target port mutex");
-    *write_guard = Some(target_port);
+    *write_guard = Some(target);
 }
-
 
 pub struct DynamicProxy(StdSender<ProxyConfig>);
 
@@ -42,7 +42,10 @@ impl DynamicProxy {
         Ok((Self(update_tx), handle))
     }
 
-    pub fn update(&self, config: ProxyConfig) -> Result<(), std::sync::mpsc::SendError<ProxyConfig>> {
+    pub fn update(
+        &self,
+        config: ProxyConfig,
+    ) -> Result<(), std::sync::mpsc::SendError<ProxyConfig>> {
         self.0.send(config)
     }
 }
@@ -53,7 +56,7 @@ fn initiate_update_observer(update_rx: StdReceiver<ProxyConfig>) {
 
     let runtime = Runtime::new().unwrap();
     while let Ok(config) = update_rx.recv() {
-        if config.off() && running_proxy_thread.is_some() {
+        if config.is_off() && running_proxy_thread.is_some() {
             let curr_shudown_tx = proxy_kill_tx.clone();
             runtime.block_on(async move {
                 let kill_tx =
@@ -62,11 +65,11 @@ fn initiate_update_observer(update_rx: StdReceiver<ProxyConfig>) {
             });
 
             running_proxy_thread = None;
-        } else if config.on() {
+        } else if config.is_on() {
             let forward_port = config
                 .forward_port()
                 .expect("Listening port not set before starting server");
-            set_target_port(forward_port);
+            set_target(forward_port);
 
             if running_proxy_thread.is_none() {
                 let listen_port = config

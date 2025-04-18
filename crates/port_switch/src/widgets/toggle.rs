@@ -8,7 +8,7 @@ impl<'a> Toggle<'a> {
     }
 }
 
-impl<'a> egui::Widget for Toggle<'a> {
+impl egui::Widget for Toggle<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let desired_size = ui.spacing().interact_size.y * egui::vec2(2.0, 1.0);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());

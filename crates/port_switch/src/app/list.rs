@@ -19,10 +19,8 @@ impl App {
                     });
                     ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                         egui::widgets::global_dark_light_mode_switch(ui);
-                        if cfg!(debug_assertions) {
-                            if ui.button("Reset").clicked() {
-                                *self = App::init_state();
-                            }
+                        if cfg!(debug_assertions) && ui.button("Reset").clicked() {
+                            *self = App::init_state();
                         }
                     });
                 })
@@ -86,7 +84,11 @@ impl App {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Port: ");
-                        ui.label(format!("{}", forward_port.port));
+                        ui.label(format!("{}", forward_port.target.port));
+                        if forward_port.target.is_external() {
+                            ui.label("Domain: ");
+                            ui.label(format!("({})", forward_port.target.domain));
+                        }
 
                         ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                             let is_already_active = is_active;

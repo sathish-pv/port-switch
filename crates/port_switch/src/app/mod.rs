@@ -1,4 +1,4 @@
-use dynamic_tcp_proxy::{DynamicProxy, ProxyConfig};
+use dynamic_tcp_proxy::{DynamicProxy, ForwardTarget, ProxyConfig};
 use eframe::egui;
 
 mod create;
@@ -6,7 +6,7 @@ mod list;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 struct ForwardPort {
-    port: u16,
+    target: ForwardTarget,
     name: String,
     #[serde(skip)]
     error: Option<String>,
@@ -14,14 +14,17 @@ struct ForwardPort {
 
 impl PartialEq for ForwardPort {
     fn eq(&self, other: &Self) -> bool {
-        self.port == other.port
+        self.target == other.target
     }
 }
 
 impl Default for ForwardPort {
     fn default() -> Self {
         Self {
-            port: 8080,
+            target: ForwardTarget {
+                port: 8080,
+                ..Default::default()
+            },
             name: "New Port".to_owned(),
             error: None,
         }
@@ -77,7 +80,7 @@ impl App {
         if self.is_enabled && self.active_forward_port.is_some() {
             let listen_port = self.listen_port;
             if let Some(fp) = &self.active_forward_port {
-                let forward_port = fp.port;
+                let forward_port = fp.target.clone();
                 conf = ProxyConfig(Some((listen_port, forward_port)));
             }
         }

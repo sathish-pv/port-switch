@@ -33,8 +33,13 @@ impl App {
                         ui.label("Name: ");
                         ui.text_edit_singleline(&mut editing_port.name);
                         ui.end_row();
+                        ui.label("Domain: ");
+                        ui.text_edit_singleline(&mut editing_port.target.domain);
+                        ui.end_row();
                         ui.label("Port: ");
-                        ui.add(egui::DragValue::new(&mut editing_port.port).range(0..=65535));
+                        ui.add(
+                            egui::DragValue::new(&mut editing_port.target.port).range(0..=65535),
+                        );
                         ui.end_row();
 
                         if let Some(err_msg) = &editing_port.error {
